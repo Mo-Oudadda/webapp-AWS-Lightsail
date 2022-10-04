@@ -7,6 +7,10 @@ services:
     build: ./app
     ports:
       - "8501:8501"
+    environment:
+      - AWS_PROFILE=default
+    volumes:
+      - ~/.aws/:/root/.aws:ro
     command: streamlit run app.py
 
   nginx:
