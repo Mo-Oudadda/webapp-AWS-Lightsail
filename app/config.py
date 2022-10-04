@@ -1,0 +1,1 @@
+SAGEMAKER_ENDPOINT = 'rooftop-backend-endpoint'
