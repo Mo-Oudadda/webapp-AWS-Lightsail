@@ -17,29 +17,29 @@ For my case i have an endpoint of the frontend in AWS SageMaker Instance using b
 
 to install and configure AWS CLI : 
 
-'sudo apt update'
+`sudo apt update`
 
-'curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"'
+`curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"`
 
-'sudo apt install unzip'
+`sudo apt install unzip`
 
-'unzip awscliv2.zip'
+`unzip awscliv2.zip`
 
-'sudo ./aws/install'
+`sudo ./aws/install`
 
-'aws configure'
+`aws configure`
 
 and then enter your access key, secret key and region
 
 ## Clone the repo of the app
 
-Go to working directory, in my case 'cd ~'  and git clone the repository
+Go to working directory, in my case `cd ~`  and git clone the repository
 
 ## Docker Compose
 
 Go to the repo directory 
 
-'sudo docker-compose up --build -d'
+`sudo docker-compose up --build -d`
 
 
 
