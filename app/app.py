@@ -1,8 +1,12 @@
+import os
 import json
 import boto3
 import streamlit as st
 import base64
 from config import SAGEMAKER_ENDPOINT
+
+SG_KEY = os.environ['aws_access_key']
+SG_SECRET = os.environ['aws_secret_access_key']
 
 st.sidebar.title('Parameters')
 zoom = st.sidebar.slider(label='Zoom level', min_value=10, max_value=21, step=1, value=18)
@@ -17,7 +21,9 @@ if address != '':
     try:
         runtime = boto3.Session().client(
             'sagemaker-runtime',
-            region_name="eu-west-3"
+            region_name="eu-west-3", 
+            aws_access_key_id = SG_KEY,
+            aws_secret_access_key = SG_SECRET
         )
 
         response = runtime.invoke_endpoint(
