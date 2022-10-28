@@ -1,17 +1,17 @@
 import math
-from random import random
-from random import gauss
-import numpy as np
-import requests
-import json
+import os
 import boto3
+import numpy as np
 import streamlit as st
 from streamlit_folium import folium_static, st_folium
-import base64
-from PIL import Image
-from config import SAGEMAKER_ENDPOINT
 from interactive_map import *
 from style import card
+import base64
+from config import SAGEMAKER_ENDPOINT
+from random import gauss
+
+SG_KEY = os.environ['aws_access_key']
+SG_SECRET = os.environ['aws_secret_access_key']
 
 
 def generate_points(center_x, center_y, mean_radius=0.00007, sigma_radius=0.0004, num_points=6):
@@ -25,12 +25,25 @@ def generate_points(center_x, center_y, mean_radius=0.00007, sigma_radius=0.0004
 
 
 def get_json_api(address, zoom, lat=0, lng=0):
-    url = "http://localhost:8080/invocations"
-    params = b'{"address": "' + address.encode('utf-8') + b'", "zoom": ' + str(zoom).encode('utf-8') + b', "lat": ' + str(
+    runtime = boto3.Session().client(
+        'sagemaker-runtime',
+        region_name="eu-west-3",
+        aws_access_key_id=SG_KEY,
+        aws_secret_access_key=SG_SECRET
+    )
+    params = b'{"address": "' + address.encode('utf-8') + b'", "zoom": ' + str(zoom).encode(
+        'utf-8') + b', "lat": ' + str(
         lat).encode('utf-8') + b', "lng": ' + str(lng).encode('utf-8') + b'}'
-    params = params.decode()
-    response = requests.post(url, data=params)
-    return response.json()
+
+    response = runtime.invoke_endpoint(
+        EndpointName=SAGEMAKER_ENDPOINT,
+        ContentType='application/json',
+        Body=params
+    )['Body'].read().decode()
+
+    formatted_response = json.loads(response)
+
+    return formatted_response
 
 
 st.set_page_config(
@@ -39,18 +52,20 @@ st.set_page_config(
     layout="wide",
 )
 
-
 st.write(
     "<style>.main * div.row-widget.stRadio > div{flex-direction:row;}</style>",
     unsafe_allow_html=True,
 )
 st.title('🔆 Rootftop Detection')
+st.sidebar.title('Parameters')
+zoom = st.sidebar.slider(label='Zoom level', min_value=15, max_value=21, step=1, value=19)
 
-zoom = 18
+st.sidebar.title('Personalize your solar analysis')
 
-address = st.text_input(label = 'Search for your home. Discover your solar savings potential.',
+electric_bill = st.sidebar.text_input(label='Your Average Monthly Electric Bill In Є', value=90)
+
+address = st.text_input(label='Search for your home. Discover your solar savings potential.',
                         placeholder='Insert your address here...')
-st.sidebar.title(' ')
 
 if address != '':
     ## Searsh Page
@@ -67,7 +82,7 @@ if address != '':
         col_instruction, col_predict, space2 = st.columns([6, 2, 2], gap="medium")
         with col_instruction:
             st.info('If the red dot not centered in your building, Drag a marker from the map tool bar and '
-                        'drop it in the centre of your building.')
+                    'drop it in the centre of your building.')
             m_marker = show_map_marker([lat, lng], zoom)
             # Geoson with the new marker coordinates and zoom
             st_data = st_folium(m_marker, height=500, width=700)
@@ -86,19 +101,16 @@ if address != '':
             font-size:18px;
             padding:16px 31px;
             text-decoration:none;
-                    
+
             }
             </style>""", unsafe_allow_html=True)
             predict = st.button('Predict')
 
-    if "load_state" not in st.session_state:
-        st.session_state.load_state = False
     ## Prediction Page
-    if predict or st.session_state.load_state:
-        st.session_state.load_state = True
+    if predict:
         try:
             new_coord = st_data['last_active_drawing']['geometry']['coordinates']
-            new_coord[0], new_coord [1] = new_coord[1], new_coord [0]
+            new_coord[0], new_coord[1] = new_coord[1], new_coord[0]
             new_zoom = st_data['zoom']
         except:
             new_coord = [lat, lng]
@@ -106,56 +118,42 @@ if address != '':
 
         placeholder.empty()
         # new session of streamlit
-        already_detected = False
         import streamlit as st
+
+        data = get_json_api(address, new_zoom, new_coord[0], new_coord[1])
+        image_base64 = base64.b64decode(data['image_base64'])
+
+        # roof = data['coordinates']
+        address_coord = data['address coordinates']
+        roof = generate_points(address_coord[0], address_coord[1])
+        roof2 = generate_points(address_coord[0] + 0.0002, address_coord[1] + 0.0002)
+        building1 = coordinates_2_polygon(roof)
+        building2 = coordinates_2_polygon(roof2)
+        data_building = [[1, building1, data['surface'], data['solar potential']],
+                         [2, building2, data['surface'] + 10, data['solar potential'] + 100]]
+
+        df = gpd.GeoDataFrame(data_building,
+                              columns=['ID', 'geometry', 'Area', 'Solar Power Potential'])
+
+        df.crs = {'init': 'epsg:4326'}
+
         col_map, space1, col_data, space2 = st.columns([4, 0.5, 2, 0.5])
-        if not already_detected:
-            data = get_json_api(address, new_zoom, new_coord[0], new_coord[1])
-            image_base64 = base64.b64decode(data['image_base64'])
 
-            # roof = data['coordinates']
-            address_coord = data['address coordinates']
-            roof = generate_points(address_coord[0], address_coord[1])
-            roof2 = generate_points(address_coord[0] + 0.0002, address_coord[1] + 0.0002)
-            building1 = coordinates_2_polygon(roof)
-            building2 = coordinates_2_polygon(roof2)
-            data_building = [[1, building1, data['surface'], data['solar potential'], data['solar installation']],
-                             [2, building2, data['surface'] + 10, data['solar potential'] + 100, data['solar installation'] + 5]]
-
-            df = gpd.GeoDataFrame(data_building,
-                                  columns=['ID', 'geometry', 'Area', 'Solar Power', 'solar installation'])
-
-
-            df.crs = {'init': 'epsg:4326'}
-
-            with col_map:
-                st.markdown('Map of roof(s) detected')
-                m = show_map_roof(df, new_zoom)
-                folium_static(m)
-
-            already_detected = True
-
+        with col_map:
+            m = show_map_roof(df, 18)
+            folium_static(m)
         # summary cards
-        st.sidebar.title('Personalize your solar analysis')
-        electric_bill = st.sidebar.text_input(label='Your Average Monthly Electric Bill In Є', value=90)
         with col_data:
-            st.success('Analysis complete.')
-            option = st.selectbox(
-                'Select your roof ID ',
-                df['ID'].values.tolist(), key='my_checkbox')
-            if option:
-                st.markdown('Roof Type : ' + 'Flat')
-                card(text='Area', value=df.iloc[option-1]['Area'], symbol='m² available for solar panels',
-                     icon="fas fa-chart-area")
-                card(text='Solar Power', value=df.iloc[option-1]['Solar Power'], symbol='Kw', icon="fas fa-sun")
-                card(text='Solar installation', value=df.iloc[option-1]['solar installation'], symbol='panel of 250W',
-                     icon="fas fa-solar-panel")
-                card(text='Savings', value=(int(electric_bill) - 10) * 12 * 24,
-                     symbol='Є estimated net savings over 20 years',
-                     icon="fas fa-piggy-bank")
-
-
-
+            st.success('Analysis complete. Your roof has: : ')
+            st.markdown('Roof Type : ' + 'Flat')
+            card(text='Area', value=data['surface'], symbol='m² available for solar panels',
+                 icon="fas fa-chart-area")
+            card(text='Solar Power', value=data['solar potential'], symbol='Kw', icon="fas fa-sun")
+            card(text='Solar installation', value=data['solar installation'], symbol='panel of 250W',
+                 icon="fas fa-solar-panel")
+            card(text='Savings', value=(int(electric_bill) - 10) * 12 * 24,
+                 symbol='Є estimated net savings over 20 years',
+                 icon="fas fa-piggy-bank")
 
 st.markdown("""<hr style="height:2px;border:none;color:#333;background-color:#333;" /> """, unsafe_allow_html=True)
 with st.expander('About'):
