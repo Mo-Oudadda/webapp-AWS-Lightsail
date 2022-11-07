@@ -3,3 +3,7 @@ streamlit==1.2.0
 streamlit_folium
 protobuf==3.20.*
 boto3
+folium
+shapely
+geopandas
+

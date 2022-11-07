@@ -5,6 +5,9 @@ services:
     container_name: app
     restart: always
     build: ./app
+    environment:
+      - aws_access_key_id = ${aws_access_key_id}
+      - aws_secret_access_key = ${aws_secret_access_key}
     ports:
       - "8501:8501"
     command: streamlit run app.py

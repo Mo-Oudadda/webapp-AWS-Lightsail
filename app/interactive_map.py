@@ -1,8 +1,5 @@
 import folium
 from folium.plugins import Draw
-import pandas as pd
-import json
-import geopandas as gpd
 import branca.colormap as cm
 from shapely.geometry import Polygon
 from credentials import Mapbox_token
@@ -14,23 +11,8 @@ warnings.simplefilter(action='ignore')
 def coordinates_2_polygon(coord_list):
     # swap lat and long
     new_coord = [(t[1], t[0]) for t in coord_list]
-
     poly = Polygon(new_coord)
-
     return poly
-
-
-def create_dataframe(data_json):
-    # data = [[1, building1, 400, 25000], [2, building2, 90, 5000]]
-    # df = gpd.GeoDataFrame(data,
-    #                       columns=['ID', 'geometry', 'Area', 'Solar Power Potential'])
-    #
-    # df.crs = {
-    #     'init': 'epsg:4326'
-    # }
-
-    # function to create the dataframe that will be used in show_map function
-    pass
 
 
 def show_map_marker(coord, zoom):
@@ -40,7 +22,8 @@ def show_map_marker(coord, zoom):
     y_map = coord[1]
 
     tileurl = 'https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.png?access_token=' + str(Mapbox_token)
-    mymap = folium.Map(location=[x_map, y_map], zoom_start=zoom, max_zoom=21, tiles=tileurl, attr='Mapbox', name='Satellite')
+    mymap = folium.Map(location=[x_map, y_map], zoom_start=zoom, max_zoom=21, tiles=tileurl, attr='Mapbox',
+                       name='Satellite')
 
     # User can add new marker
     Draw(draw_options={
@@ -75,21 +58,21 @@ def show_map_roof(df, zoom):
 
     # Map choropleth configuration
     colormap = cm.LinearColormap(colors=['#fecc5c', '#fd8d3c', '#f03b20']).scale(
-        round(df['Solar Power'].min()),
-        round(df['Solar Power'].max()))
+        round(df['potential_electricity_production_in_Kwh'].min()),
+        round(df['potential_electricity_production_in_Kwh'].max()))
 
     # Create new folium map
-    mymap = folium.Map(location=[y_map, x_map], zoom_start=zoom, max_zoom=21, tiles=None)
+    mymap = folium.Map(location=[y_map, x_map], zoom_start=zoom, max_zoom=21, tiles=None, width="%100", height="%100")
 
     # Add Mapbox tile layer (satellite)
     tileurl = 'https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.png?access_token=' + str(Mapbox_token)
-    folium.TileLayer(zoom_start=19, max_zoom=20, tiles=tileurl, attr='Mapbox', name='Satellite').add_to(mymap)
+    folium.TileLayer(zoom_start=zoom, max_zoom=20, tiles=tileurl, attr='Mapbox', name='Satellite', width="%100", height="%100").add_to(mymap)
 
     # Style configuration
     colormap.caption = "Solar Potential"
     style_function = lambda x: {"weight": 0.1,
                                 'color': '#0000ff',
-                                'fillColor': colormap(x['properties']['Solar Power']),
+                                'fillColor': colormap(x['properties']['potential_electricity_production_in_Kwh']),
                                 'fillOpacity': 0.7}
 
     # Add second layer with tooltip : allows to display a text when hovering over the object
@@ -99,8 +82,8 @@ def show_map_roof(df, zoom):
         style_function=style_function,
         control=False,
         zoom_on_click=True,
-        tooltip=folium.features.GeoJsonTooltip(fields=['ID', 'Area', 'Solar Power'],
-                                               aliases=['Building', 'Area', 'Solar Power'],
+        tooltip=folium.features.GeoJsonTooltip(fields=['ID', 'area', 'potential_electricity_production_in_Kwh'],
+                                               aliases=['Roof ID', 'Area (m²)', 'Potential electricity production (Kwh)'],
                                                style=(
                                                    "background-color: white; color: #333333; font-family: arial; "
                                                    "font-size: 12px; padding: 10px;"),
@@ -108,7 +91,7 @@ def show_map_roof(df, zoom):
                                                )
     )
     # Add Light Map tile layer
-    folium.TileLayer('CartoDB positron', name="Light Map").add_to(mymap)
+    folium.TileLayer(tiles='CartoDB positron', name="Light Map", zoom_start=zoom, max_zoom=20, width="%100", height="%100").add_to(mymap)
 
     colormap.add_to(mymap)
     mymap.add_child(roof)

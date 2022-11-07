@@ -37,7 +37,7 @@ Go to working directory, in my case `cd ~`  and git clone the repository
 
 ## Docker Compose
 
-Go to the repo 
+Go to the repo directory 
 
 `sudo docker-compose up --build -d`
 

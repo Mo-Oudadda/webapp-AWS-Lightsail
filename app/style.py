@@ -9,7 +9,10 @@ def card(text='', value='', symbol='', icon='', background=(255, 204, 0), fontsi
     iconname = icon
     sline = text
     lnk = '<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.1/css/all.css" crossorigin="anonymous">'
-    i = str(value) + ' ' + symbol
+    if type(value) in (int, float):
+        i = f'{value:,}'.replace(',', ' ') + ' ' + symbol
+    else:
+        i = str(value) + ' ' + symbol
 
     htmlstr = f"""<p style='background-color: rgb({wch_colour_box[0]}, 
                                                   {wch_colour_box[1]}, 
